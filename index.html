@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor de Zoomquilt</title>
+<style>
+:root{
+  --bg:#141312; --panel:#1d1b19; --panel2:#262321; --line:#35312d; --text:#ece7e0; --dim:#9a9188;
+  --accent:#f0a63a; --accent-ink:#1b1408; --warn:#ff7a59; --ok:#8fcf8a;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  display:grid;grid-template-columns:132px minmax(0,1fr) 280px;grid-template-rows:auto minmax(0,1fr) auto;
+  grid-template-areas:"head head head" "strip stage panel" "foot foot foot";overflow:hidden}
+header{grid-area:head;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:14px;margin:0 6px 0 0;letter-spacing:.04em;font-weight:650}
+header h1 b{color:var(--accent)}
+header label{display:flex;align-items:center;gap:6px;color:var(--dim);white-space:nowrap}
+.sp{flex:1}
+button,select{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:5px 10px;cursor:pointer}
+button:hover,select:hover{border-color:#5a534b}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:650}
+button:disabled{opacity:.4;cursor:default}
+input[type=range]{accent-color:var(--accent);width:100%;margin:0}
+input[type=checkbox]{accent-color:var(--accent)}
+input[type=number]{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:4px 8px;width:100%}
+#strip{grid-area:strip;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+#strip>button{margin:8px}
+#list{flex:1;overflow-y:auto;padding:0 8px 8px;display:flex;flex-direction:column;gap:6px}
+.it{position:relative;border:2px solid transparent;border-radius:6px;overflow:hidden;cursor:pointer;background:#000;flex:none}
+.it img{display:block;width:100%;aspect-ratio:var(--ar);object-fit:contain;pointer-events:none}
+.it.sel{border-color:var(--accent)}
+.it.over{border-color:#fff}
+.it .num,.it .badge{position:absolute;top:3px;font-size:10px;padding:1px 5px;border-radius:4px;background:rgba(0,0,0,.7)}
+.it .num{left:3px}
+.it .badge{left:24px;color:var(--accent)}
+.it .del{position:absolute;top:2px;right:2px;padding:0 6px;line-height:16px;font-size:13px;background:rgba(0,0,0,.7);border:0;opacity:0}
+.it:hover .del,.it .del:focus-visible{opacity:1}
+#stage{grid-area:stage;position:relative;min-width:0;min-height:0;display:flex;align-items:center;justify-content:center;
+  background:repeating-conic-gradient(#191716 0 25%,#141312 0 50%) 0 0/24px 24px}
+#cv{display:block;touch-action:none;box-shadow:0 0 0 1px var(--line),0 12px 40px rgba(0,0,0,.5)}
+#pill{position:absolute;top:10px;left:10px;background:rgba(0,0,0,.72);padding:4px 10px;border-radius:999px;font-size:12px;color:var(--dim);pointer-events:none}
+#pill b{color:var(--text);font-weight:600}
+#empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:24px;background:var(--bg)}
+#empty p{margin:0;color:var(--dim);max-width:44ch}
+#empty h2{margin:0;font-size:18px;font-weight:600}
+#panel{grid-area:panel;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:12px}
+#panel.off>*{display:none}
+#panel.off::before{content:"Adicione imagens para começar.";color:var(--dim)}
+#panel h3{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim);margin:16px 0 8px;font-weight:600}
+#panel h3:first-child{margin-top:0}
+.row{display:grid;grid-template-columns:86px 1fr 46px;align-items:center;gap:8px;margin:6px 0}
+.row output{text-align:right;font-variant-numeric:tabular-nums;color:var(--dim)}
+.row.dis{opacity:.35}
+#pname{font-weight:600;word-break:break-all}
+#pdims,.note{color:var(--dim);font-size:12px}
+.note{margin:8px 0;line-height:1.45}
+.note.warn{color:var(--warn)} .note.ok{color:var(--ok)}
+.tog{display:flex;align-items:center;gap:8px;margin:6px 0}
+.btns{display:flex;gap:6px;margin-top:8px}
+footer{grid-area:foot;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:8px 12px;background:var(--panel);border-top:1px solid var(--line)}
+#play{width:74px}
+#tlw{position:relative;padding-bottom:16px}
+#marks{position:absolute;left:8px;right:8px;bottom:0;height:14px}
+#marks button{position:absolute;transform:translateX(-50%);padding:0 4px;font-size:10px;line-height:13px;border-radius:3px;color:var(--dim)}
+#marks button.cur{color:var(--accent);border-color:var(--accent)}
+#time{font-variant-numeric:tabular-nums;color:var(--dim);min-width:120px;text-align:right}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:10}
+#modal.on{display:flex}
+#modal>div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;width:min(380px,90vw)}
+#modal h2{margin:0 0 6px;font-size:15px}
+#modal p{margin:0 0 12px;color:var(--dim)}
+progress{width:100%;accent-color:var(--accent);margin-bottom:12px}
+body.drop::after{content:"Solte as imagens";position:fixed;inset:8px;border:2px dashed var(--accent);border-radius:12px;
+  display:flex;align-items:center;justify-content:center;font-size:20px;background:rgba(20,19,18,.8);z-index:20;pointer-events:none}
+@media (max-width:820px){
+  body{grid-template-columns:96px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto auto;
+    grid-template-areas:"head head" "strip stage" "panel panel" "foot foot"}
+  #panel{border-left:0;border-top:1px solid var(--line);max-height:34vh}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>ZOOM<b>QUILT</b></h1>
+  <label>Proporção
+    <select id="aspect"><option>16:9</option><option>4:3</option><option>1:1</option><option>3:4</option><option>9:16</option></select>
+  </label>
+  <label><input type="checkbox" id="loop"> Loop</label>
+  <label>Direção
+    <select id="dir"><option value="1">Entrar</option><option value="-1">Sair</option></select>
+  </label>
+  <label>Velocidade <input type="range" id="speed" min="0.2" max="8" step="0.05" style="width:90px"> <output id="speedo"></output></label>
+  <label title="Ligado: os pixels ampliados ficam embaçados. Desligado: pixels nítidos."><input type="checkbox" id="smooth"> Suavizar pixels</label>
+  <label title="Giro contínuo durante o zoom, em todas as imagens que seguem o giro global"><input type="checkbox" id="spinOn"> Giro</label>
+  <label><input type="number" id="spinSpeed" min="0" max="720" step="1" style="width:64px" aria-label="Velocidade do giro"> °/s</label>
+  <select id="spinDir" aria-label="Sentido do giro"><option value="1">Horário</option><option value="-1">Anti-horário</option></select>
+  <span class="sp"></span>
+  <button id="open" title="Abrir um projeto .json">Abrir</button>
+  <button id="save" title="Salvar o projeto como .json">Salvar</button>
+  <label>Saída
+    <select id="res"><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option></select>
+  </label>
+  <button id="xvid">Exportar WebM</button>
+  <button id="xgif" title="GIF reduzido (15 fps, 256 cores), para testes rápidos">Exportar GIF</button>
+  <button id="xhtml">Exportar HTML</button>
+</header>
+
+<aside id="strip">
+  <button id="add" class="pri">+ Imagens</button>
+  <div id="list"></div>
+</aside>
+
+<main id="stage">
+  <canvas id="cv"></canvas>
+  <div id="pill"></div>
+  <div id="empty">
+    <h2>Editor de Zoomquilt</h2>
+    <p>Arraste imagens para cá ou use o botão abaixo. Cada imagem fica escondida dentro da anterior e vai se revelando conforme o zoom avança.</p>
+    <div class="btns"><button id="add2" class="pri">Escolher imagens</button><button id="demo">Usar imagens de exemplo</button></div>
+  </div>
+</main>
+
+<aside id="panel" class="off">
+  <h3>Imagem <span id="pnum"></span></h3>
+  <div id="pname"></div><div id="pdims"></div>
+  <div class="row"><span>Borda suave</span><input type="range" data-f="feather" min="0" max="50" step="1"><output data-o="feather"></output></div>
+  <div class="note" id="fnote"></div>
+
+  <h3>Âncora da próxima imagem</h3>
+  <div id="anchor">
+    <label class="tog"><input type="checkbox" id="auto"> Posição automática</label>
+    <div class="row"><label for="px">Pixel X</label><input type="number" id="px" min="0" step="1"><span></span></div>
+    <div class="row"><label for="py">Pixel Y</label><input type="number" id="py" min="0" step="1"><span></span></div>
+    <div class="row"><span>Tamanho</span><input type="range" data-f="fill" min="10" max="100" step="1"><output data-o="fill"></output></div>
+    <div class="row"><label for="rmode">Giro</label><select id="rmode" style="grid-column:span 2"><option value="global">Seguir o giro global</option><option value="none">Não girar</option><option value="custom">Personalizado</option></select></div>
+    <div id="rcustom">
+      <div class="row"><label for="rdeg">Graus</label><input type="number" id="rdeg" min="0" max="36000" step="1"><span>°</span></div>
+      <div class="row"><label for="rdir">Sentido</label><select id="rdir" style="grid-column:span 2"><option value="1">Horário</option><option value="-1">Anti-horário</option></select></div>
+    </div>
+    <div class="note" id="rnote"></div>
+    <div class="note" id="sharp"></div>
+    <div class="btns"><button id="center">Centralizar</button></div>
+    <div class="note">No palco: clique ou arraste para escolher o pixel onde a próxima imagem nasce. A lupa mostra os pixels vizinhos. "Tamanho" é quanto do pixel a imagem ocupa.</div>
+  </div>
+  <div class="note" id="noanchor">Esta é a última imagem e o loop está desligado, então nada aparece dentro dela.</div>
+</aside>
+
+<footer>
+  <button id="play" class="pri">▶ Tocar</button>
+  <div id="tlw"><input type="range" id="tl" min="0" max="1" step="0.001" value="0" aria-label="Posição do zoom"><div id="marks"></div></div>
+  <div id="time"></div>
+</footer>
+
+<div id="modal"><div><h2 id="mtitle"></h2><p id="mtext"></p><progress id="mprog" max="1" value="0"></progress><button id="mcancel">Cancelar</button></div></div>
+<input type="file" id="file" accept="image/*" multiple hidden>
+<input type="file" id="pfile" accept=".json,application/json" hidden>
+
+<script>
+/* ===================================================================
+   Motor: autossuficiente (não usa nada de fora), pois o código-fonte
+   desta função é copiado para dentro do player HTML exportado.
+   Coordenadas do quadro: origem no centro, altura = 1, largura = A.
+   Âncora da imagem i: a filha fica em p = c + a·q, com a = s·e^(ir).
+   =================================================================== */
+function ZQEngine(){
+  const MAXDIM=2048, TW=64;
+  const mk=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c};
+  function ramp(gr,a){
+    for(const [t,v] of [[0,0],[.25,.16],[.5,.5],[.75,.84],[1,1]]){
+      gr.addColorStop(a*t,`rgba(0,0,0,${v})`); gr.addColorStop(1-a*t,`rgba(0,0,0,${v})`);
+    }
+  }
+  // Mantém a proporção original da imagem, aplica a borda suave e gera a cadeia de mipmaps.
+  function buildFrame(src,sw0,sh0,feather){
+    const k=Math.min(1,MAXDIM/Math.max(sw0,sh0));
+    const w=Math.max(2,Math.round(sw0*k)),h=Math.max(2,Math.round(sh0*k));
+    const c=mk(w,h),g=c.getContext('2d');
+    g.imageSmoothingQuality='high'; g.drawImage(src,0,0,w,h);
+    const tw=w>=h?TW:Math.max(4,Math.round(TW*w/h)),th=w>=h?Math.max(4,Math.round(TW*h/w)):TW;
+    const tc=mk(tw,th),tg=tc.getContext('2d',{willReadFrequently:true});
+    tg.imageSmoothingQuality='high'; tg.drawImage(c,0,0,tw,th);
+    const thumb=tg.getImageData(0,0,tw,th);
+    if(feather>0){
+      const f=Math.min(.5,feather)*Math.min(w,h);
+      g.globalCompositeOperation='destination-in';
+      let gr=g.createLinearGradient(0,0,w,0); ramp(gr,f/w); g.fillStyle=gr; g.fillRect(0,0,w,h);
+      gr=g.createLinearGradient(0,0,0,h); ramp(gr,f/h); g.fillStyle=gr; g.fillRect(0,0,w,h);
+      g.globalCompositeOperation='source-over';
+    }
+    const mips=[c]; let cur=c;
+    while(Math.min(cur.width,cur.height)>48){
+      const m=mk(Math.max(1,cur.width>>1),Math.max(1,cur.height>>1)),mg=m.getContext('2d');
+      mg.imageSmoothingQuality='high'; mg.drawImage(cur,0,0,m.width,m.height); mips.push(m); cur=m;
+    }
+    return {mips,thumb,w,h};
+  }
+  // Desenha a cadeia inteira na profundidade z: dos ancestrais até a descendente ficar menor que 1 px.
+  function render(ctx,W,H,z,P){
+    const n=P.items.length;
+    ctx.setTransform(1,0,0,1,0,0); ctx.globalAlpha=1; ctx.fillStyle=P.bg||'#000'; ctx.fillRect(0,0,W,H);
+    if(!n) return 0;
+    const A=P.A, idx=k=>((k%n)+n)%n, has=k=>P.loop||(k>=0&&k<n), hasChild=k=>P.loop||(k>=0&&k<n-1);
+    let i0=Math.floor(z), f=z-i0;
+    if(!P.loop){ if(i0>n-1){i0=n-1;f=0} if(i0<0){i0=0;f=0} }
+    // Transformação "imagem i0 -> tela": v = m·p + b (números complexos).
+    let mr=1,mi=0,bx=0,by=0;
+    if(f>0&&hasChild(i0)){
+      const it=P.items[idx(i0)], ar=it.s*Math.cos(it.r), ai=it.s*Math.sin(it.r);
+      // Ponto fixo F = c/(1-a): o zoom gira e amplia em torno dele, sem solavanco.
+      const dr=1-ar, di=-ai, dd=dr*dr+di*di||1e-9;
+      const Fx=(it.x*dr+it.y*di)/dd, Fy=(it.y*dr-it.x*di)/dd;
+      const mag=Math.pow(it.s,-f), ang=-it.r*f;
+      mr=mag*Math.cos(ang); mi=mag*Math.sin(ang);
+      bx=Fx-(mr*Fx-mi*Fy); by=Fy-(mi*Fx+mr*Fy);
+    }
+    // Sobe pelos ancestrais: aparecem atrás da borda suave e nas faixas de imagens com outra proporção.
+    let L=i0;
+    for(let k=0;k<2&&has(L-1);k++){
+      const p=P.items[idx(L-1)], ar=p.s*Math.cos(p.r), ai=p.s*Math.sin(p.r), dd=ar*ar+ai*ai;
+      const nr=(mr*ar+mi*ai)/dd, ni=(mi*ar-mr*ai)/dd;
+      bx-=nr*p.x-ni*p.y; by-=ni*p.x+nr*p.y; mr=nr; mi=ni; L--;
+    }
+    ctx.imageSmoothingQuality='high';
+    let drawn=0;
+    for(let guard=0;guard<80;guard++){
+      const it=P.items[idx(L)], fr=it.frame;
+      if(fr){
+        // A imagem cabe inteira no quadro ("contain"), centrada, sem corte.
+        const a=fr.w/fr.h, hw=a>A?A/2:a/2, hh=a>A?A/(2*a):.5, s2=mr*mr+mi*mi, dh=Math.sqrt(s2)*H*2*hh;
+        let mp=fr.mips[0];
+        for(const m of fr.mips){ if(m.height>=dh) mp=m; else break; }
+        const tw=2*hw/mp.width, th=2*hh/mp.height;
+        // Leva os 4 cantos da tela para coordenadas de pixel da imagem e desenha só o trecho visível:
+        // em ampliações de milhares de vezes (e com giro) isso mantém a precisão.
+        let u0=1/0,u1=-1/0,v0=1/0,v1=-1/0;
+        for(let c=0;c<4;c++){
+          const qx=((c&1?W:0)-W/2)/H-bx, qy=((c&2?H:0)-H/2)/H-by;
+          const u=((mr*qx+mi*qy)/s2+hw)/tw, v=((mr*qy-mi*qx)/s2+hh)/th;
+          if(u<u0)u0=u; if(u>u1)u1=u; if(v<v0)v0=v; if(v>v1)v1=v;
+        }
+        // Com suavização, um pixel de folga para a interpolação não "grudar" na borda do recorte.
+        const smooth=!!P.smooth||dh<=mp.height, pad=smooth?1:0;
+        u0=Math.max(0,Math.floor(u0)-pad); u1=Math.min(mp.width,Math.ceil(u1)+pad);
+        v0=Math.max(0,Math.floor(v0)-pad); v1=Math.min(mp.height,Math.ceil(v1)+pad);
+        if(u1>u0&&v1>v0){
+          const ox=-hw+u0*tw, oy=-hh+v0*th;
+          // Reduzindo: sempre suaviza (evita cintilação). Ampliando: pixels nítidos, a menos que P.smooth peça o filtro.
+          ctx.imageSmoothingEnabled=smooth;
+          ctx.setTransform(mr*tw*H,mi*tw*H,-mi*th*H,mr*th*H,(mr*ox-mi*oy+bx)*H+W/2,(mi*ox+mr*oy+by)*H+H/2);
+          ctx.drawImage(mp,u0,v0,u1-u0,v1-v0,0,0,u1-u0,v1-v0); drawn++;
+        }
+      }
+      if(!hasChild(L)) break;
+      const ar=it.s*Math.cos(it.r), ai=it.s*Math.sin(it.r);
+      bx+=mr*it.x-mi*it.y; by+=mi*it.x+mr*it.y;
+      const nr=mr*ar-mi*ai, ni=mr*ai+mi*ar; mr=nr; mi=ni; L++;
+      if(Math.hypot(mr,mi)*H<.75) break;
+    }
+    ctx.setTransform(1,0,0,1,0,0); ctx.imageSmoothingEnabled=true;
+    return drawn;
+  }
+  // Avança z mantendo a velocidade de zoom constante, mesmo com escalas diferentes por imagem.
+  function advance(z,dt,P){
+    const n=P.items.length; if(!n) return 0;
+    const idx=k=>((k%n)+n)%n, dir=P.dir<0?-1:1;
+    let rem=dt*P.rate;
+    for(let guard=0;guard<200&&rem>1e-9;guard++){
+      let i=Math.floor(z); if(dir<0&&z===i) i--;
+      if(!P.loop&&(i<0||i>=n-1)) break;
+      const Lg=Math.log(1/P.items[idx(i)].s), edge=dir>0?i+1:i, dist=Math.abs(edge-z)*Lg;
+      if(rem>=dist){z=edge;rem-=dist}else{z+=dir*rem/Lg;rem=0}
+    }
+    if(P.loop) z=((z%n)+n)%n; else z=Math.max(0,Math.min(n-1,z));
+    return z;
+  }
+  return {buildFrame,render,advance};
+}
+const ZQ=ZQEngine();
+
+/* ============================ Estado ============================ */
+const $=s=>document.querySelector(s);
+const S={aspect:'16:9',loop:true,dir:1,speed:2,spinOn:false,spinSpeed:20,spinDir:1,smooth:false,res:1080,images:[],sel:0,mode:'edit',z:0,playing:false};
+let uid=1,dirty=true,stripDirty=true,exporting=false;
+const cv=$('#cv'),ctx=cv.getContext('2d'),tl=$('#tl');
+const getA=()=>{const [a,b]=S.aspect.split(':').map(Number);return a/b};
+const N=()=>S.images.length;
+const zmax=()=>S.loop?N():Math.max(0,N()-1);
+const hasChild=i=>N()>0&&(S.loop||i<N()-1);
+const rate=()=>Math.LN2/1.5*S.speed;
+const proj=()=>({A:getA(),loop:S.loop,dir:S.dir,rate:rate(),bg:'#000',smooth:S.smooth,items:S.images});
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const effFeather=(im,i)=>(!S.loop&&i===0)?0:im.feather;
+function outSize(){const A=getA(),r=S.res;const w=A>=1?r*A:r,h=A>=1?r:r/A;return [2*Math.round(w/2),2*Math.round(h/2)]}
+// Metade da largura e da altura da imagem dentro do quadro (altura do quadro = 1).
+function halfOf(im){const A=getA(),a=im&&im.w?im.w/im.h:A;return a>A?[A/2,A/(2*a)]:[a/2,.5]}
+const childOf=im=>S.images[(S.images.indexOf(im)+1)%N()]||im;
+// A filha mora dentro de um único pixel da mãe: encaixa a posição no centro do pixel e deriva a escala.
+function clampAnchor(im){
+  const ch=childOf(im); im.fill=clamp(im.fill||1,.1,1);
+  if(!im.frame||!ch||!ch.frame) return;
+  const [pw,ph]=halfOf(im),[cw,chh]=halfOf(ch),fw=im.frame.w,fh=im.frame.h,tX=2*pw/fw,tY=2*ph/fh;
+  im.tx=clamp(Math.floor((im.x+pw)/tX),0,fw-1); im.ty=clamp(Math.floor((im.y+ph)/tY),0,fh-1);
+  im.x=-pw+(im.tx+.5)*tX; im.y=-ph+(im.ty+.5)*tY;
+  im.s=Math.min(tX,tY)*im.fill/(2*Math.max(cw,chh));
+}
+// Giro do trecho, em graus no sentido horário (negativo = anti-horário).
+// Global: velocidade em °/s × duração do trecho. Personalizado: graus fixos divididos pelo tempo do trecho.
+function spinDeg(im,i){
+  if(!hasChild(i)) return 0;
+  if(im.rmode==='custom') return (im.rdeg||0)*(im.rdir<0?-1:1);
+  if(im.rmode==='global'&&S.spinOn) return S.spinSpeed*(S.spinDir<0?-1:1)*Math.log(1/im.s)/rate();
+  return 0;
+}
+// No motor, r>0 gira a cena no sentido anti-horário ao entrar; ao tocar "saindo" o sentido se inverte.
+function applySpin(){S.images.forEach((im,i)=>{im.r=-spinDeg(im,i)*Math.PI/180*(S.dir<0?-1:1)})}
+function newImage(blob,name,o={}){
+  return Object.assign({id:uid++,blob,name,url:URL.createObjectURL(blob),w:0,h:0,feather:.12,
+    auto:true,x:0,y:0,s:.0005,fill:1,tx:0,ty:0,r:0,rmode:'global',rdeg:90,rdir:1,frame:null,frameSig:'',building:null,autoKey:''},o);
+}
+
+/* ====================== Quadros (crop + borda) ====================== */
+let ensureT=0;
+function ensureSoon(){clearTimeout(ensureT);ensureT=setTimeout(ensureFrames,80)}
+function ensureFrames(){
+  S.images.forEach((im,i)=>{
+    const ef=effFeather(im,i),sig='f'+ef;
+    if(im.frameSig!==sig&&im.building!==sig) buildFrame(im,sig,ef);
+  });
+}
+async function buildFrame(im,sig,ef){
+  im.building=sig;
+  try{
+    const bmp=await createImageBitmap(im.blob);
+    if(im.building!==sig){bmp.close();return}
+    im.w=bmp.width; im.h=bmp.height;
+    im.frame=ZQ.buildFrame(bmp,bmp.width,bmp.height,ef); bmp.close();
+  }catch(e){ console.error('Falha ao ler a imagem',im.name,e); im.frame=null; im.broken=true; }
+  if(im.building===sig){im.building=null;im.frameSig=sig;changed(false)}
+}
+
+/* ========================= Âncora automática ========================= */
+// Escolhe na mãe o pixel de cor mais próxima da borda da filha, sem fugir muito do centro.
+function autoAnchor(im,ch){
+  const par=im.frame.thumb,chi=ch.frame.thumb,gw=par.width,gh=par.height,pd=par.data,cd=chi.data,cw=chi.width,chh=chi.height;
+  let r=0,g=0,b=0,k=0;
+  const add=(x,y)=>{const i=(y*cw+x)*4;r+=cd[i];g+=cd[i+1];b+=cd[i+2];k++};
+  for(let x=0;x<cw;x++){add(x,0);add(x,chh-1)} for(let y=1;y<chh-1;y++){add(0,y);add(cw-1,y)}
+  r/=k;g/=k;b/=k;
+  const dist=(d,i)=>Math.abs(d[i]-r)+Math.abs(d[i+1]-g)+Math.abs(d[i+2]-b);
+  const mx=Math.round(gw*.12),my=Math.round(gh*.12); let best=null;
+  for(let y=my;y<gh-my;y++)for(let x=mx;x<gw-mx;x++){
+    const ux=(x+.5)/gw-.5,uy=(y+.5)/gh-.5,sc=dist(pd,(y*gw+x)*4)/765+.25*(ux*ux+uy*uy);
+    if(!best||sc<best.sc) best={sc,x,y};
+  }
+  if(!best) return {x:0,y:0};
+  // Refina na resolução cheia: dentro da célula escolhida, o pixel opaco de cor mais próxima.
+  const fr=im.frame,x0=Math.floor(best.x*fr.w/gw),y0=Math.floor(best.y*fr.h/gh);
+  const w=Math.max(1,Math.min(fr.w-x0,Math.ceil(fr.w/gw))),h=Math.max(1,Math.min(fr.h-y0,Math.ceil(fr.h/gh)));
+  const d=fr.mips[0].getContext('2d').getImageData(x0,y0,w,h).data; let bt=null;
+  for(let i=0;i<w*h;i++){const sc=dist(d,i*4)+(255-d[i*4+3])*4;if(!bt||sc<bt.sc)bt={sc,i}}
+  const [pw,ph]=halfOf(im),tx=x0+bt.i%w,ty=y0+Math.floor(bt.i/w);
+  return {x:-pw+(tx+.5)*2*pw/fr.w,y:-ph+(ty+.5)*2*ph/fr.h};
+}
+function refreshAuto(){
+  const n=N();
+  S.images.forEach((im,i)=>{
+    if(!im.auto||!hasChild(i)) return;
+    const ch=S.images[(i+1)%n];
+    if(!im.frame||!ch.frame) return;
+    const key=[ch.id,S.aspect,im.frameSig].join('~');
+    if(im.autoKey===key) return;
+    const p=autoAnchor(im,ch);
+    im.x=p.x; im.y=p.y; im.autoKey=key; clampAnchor(im);
+  });
+}
+
+/* ============================ Atualização ============================ */
+function changed(save=true){
+  S.sel=clamp(S.sel,0,Math.max(0,N()-1));
+  ensureSoon(); refreshAuto(); S.images.forEach(clampAnchor); applySpin(); dirty=true; syncUI(); if(save) saveSoon();
+}
+const FIELDS={
+  feather:{to:v=>v*100,from:v=>v/100,fmt:v=>v.toFixed(0)+'%'},
+  fill:{to:v=>v*100,from:v=>v/100,fmt:v=>v.toFixed(0)+'%'},
+};
+function syncUI(){
+  const n=N(),im=S.images[S.sel];
+  $('#empty').style.display=n?'none':'flex';
+  $('#aspect').value=S.aspect; $('#loop').checked=S.loop; $('#dir').value=S.dir; $('#res').value=S.res;
+  $('#smooth').checked=S.smooth; $('#spinOn').checked=S.spinOn; $('#spinDir').value=S.spinDir; if(document.activeElement!==$('#spinSpeed')) $('#spinSpeed').value=S.spinSpeed;
+  $('#speed').value=S.speed; $('#speedo').textContent=S.speed.toFixed(2)+'×';
+  for(const id of ['save','xvid','xgif','xhtml','play']) $('#'+id).disabled=!n;
+  $('#play').textContent=S.playing?'❚❚ Pausar':'▶ Tocar';
+  // tira
+  if(stripDirty){
+    stripDirty=false; const list=$('#list'); list.textContent='';
+    S.images.forEach((m,i)=>{
+      const d=document.createElement('div'); d.className='it'; d.draggable=true; d.dataset.i=i; d.title=m.name;
+      const img=document.createElement('img'); img.src=m.url; img.alt=m.name;
+      const num=document.createElement('span'); num.className='num'; num.textContent=i+1;
+      const bd=document.createElement('span'); bd.className='badge';
+      const del=document.createElement('button'); del.className='del'; del.textContent='×'; del.title='Remover';del.setAttribute('aria-label','Remover '+m.name);
+      d.append(img,num,bd,del); list.append(d);
+    });
+  }
+  document.querySelectorAll('.it').forEach((d,i)=>{
+    const m=S.images[i]; if(!m) return;
+    d.classList.toggle('sel',i===S.sel); d.style.setProperty('--ar',getA());
+    d.querySelector('.badge').textContent=hasChild(i)?(m.auto?'auto':'manual'):'';
+  });
+  // linha do tempo
+  tl.max=zmax()||1; tl.value=S.mode==='edit'?S.sel:S.z; tl.disabled=!n||zmax()===0;
+  const marks=$('#marks');
+  if(marks.childElementCount!==n){marks.textContent='';for(let i=0;i<n;i++){const b=document.createElement('button');b.dataset.i=i;b.textContent=i+1;b.title='Editar imagem '+(i+1);marks.append(b)}}
+  [...marks.children].forEach((b,i)=>{b.style.left=(zmax()?i/zmax()*100:0)+'%';b.classList.toggle('cur',i===S.sel)});
+  syncTime();
+  // selo do palco
+  $('#pill').style.display=n?'':'none';
+  $('#pill').innerHTML=S.mode==='edit'?`Editando <b>imagem ${S.sel+1}</b>`+(hasChild(S.sel)?' · clique para escolher o pixel':''):`<b>Prévia</b> · clique numa imagem para editar`;
+  // painel
+  const panel=$('#panel'); panel.classList.toggle('off',!im); if(!im) return;
+  $('#pnum').textContent=(S.sel+1)+' de '+n; $('#pname').textContent=im.name;
+  $('#pdims').textContent=im.broken?'Não foi possível ler esta imagem.':im.w?im.w+' × '+im.h+' px':'carregando…';
+  document.querySelectorAll('#panel [data-f]').forEach(inp=>{const F=FIELDS[inp.dataset.f],v=F.to(im[inp.dataset.f]);inp.value=v;panel.querySelector(`[data-o="${inp.dataset.f}"]`).textContent=F.fmt(v)});
+  $('#fnote').textContent=(!S.loop&&S.sel===0)?'Com o loop desligado, a primeira imagem não tem borda suave: ela não está dentro de nenhuma outra.':'';
+  const hc=hasChild(S.sel); $('#anchor').style.display=hc?'':'none'; $('#noanchor').style.display=hc?'none':'';
+  $('#auto').checked=im.auto;
+  $('#rmode').value=im.rmode; $('#rcustom').style.display=im.rmode==='custom'?'':'none'; $('#rdir').value=im.rdir;
+  if(document.activeElement!==$('#rdeg')) $('#rdeg').value=im.rdeg;
+  const sd=spinDeg(im,S.sel),secs=Math.log(1/im.s)/rate();
+  $('#rnote').textContent=!hc?'':sd?`Gira ${Math.abs(sd).toFixed(0)}° no sentido ${sd>0?'horário':'anti-horário'} ao longo dos ${secs.toFixed(1)} s deste trecho (${(Math.abs(sd)/secs).toFixed(1)} °/s).`:(im.rmode==='global'?'O giro global está desligado.':'Sem giro neste trecho.');
+  const sh=$('#sharp');
+  if(im.frame&&hc){
+    for(const [id,v,max] of [['px',im.tx,im.frame.w-1],['py',im.ty,im.frame.h-1]]){const e=$('#'+id);e.max=max;if(document.activeElement!==e)e.value=v}
+    sh.textContent=`A próxima imagem nasce dentro de um único pixel desta. Ampliação neste trecho: ${Math.round(1/im.s).toLocaleString('pt-BR')}×, em ${(Math.log(1/im.s)/rate()).toFixed(1)} s.`;
+  } else sh.textContent='';
+}
+function zTime(z){ // segundos decorridos até a profundidade z
+  const n=N(); if(!n) return 0; let t=0;
+  for(let i=0;i<Math.ceil(z);i++){ if(!hasChild(i)) break; t+=Math.log(1/S.images[i%n].s)*Math.min(1,z-i); }
+  return t/rate();
+}
+function syncTime(){
+  const z=S.mode==='edit'?S.sel:S.z;
+  $('#time').textContent=N()?zTime(z).toFixed(1)+' s / '+zTime(zmax()).toFixed(1)+' s':'';
+}
+
+/* ============================== Palco ============================== */
+function fitCanvas(){
+  const st=$('#stage'),A=getA(),pad=28,aw=Math.max(50,st.clientWidth-pad*2),ah=Math.max(50,st.clientHeight-pad*2);
+  const w=Math.min(aw,ah*A),h=w/A,d=window.devicePixelRatio||1;
+  cv.style.width=w+'px'; cv.style.height=h+'px';
+  const W=Math.round(w*d),H=Math.round(h*d);
+  if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H}
+  dirty=true;
+}
+new ResizeObserver(fitCanvas).observe($('#stage'));
+function draw(){
+  const P=proj(); ZQ.render(ctx,cv.width,cv.height,S.mode==='edit'?S.sel:S.z,P);
+  if(S.mode!=='edit'||!hasChild(S.sel)||exporting) return;
+  const im=S.images[S.sel],fr=im.frame; if(!fr) return;
+  const W=cv.width,H=cv.height,d=window.devicePixelRatio||1,ax=im.x*H+W/2,ay=im.y*H+H/2;
+  // marcador do pixel-âncora
+  for(const [lw,col] of [[4,'rgba(0,0,0,.7)'],[1.75,'#f0a63a']]){
+    ctx.lineWidth=lw*d; ctx.strokeStyle=col; ctx.beginPath(); ctx.arc(ax,ay,11*d,0,7);
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ctx.moveTo(ax+dx*5*d,ay+dy*5*d);ctx.lineTo(ax+dx*20*d,ay+dy*20*d)}
+    ctx.stroke();
+  }
+  // lupa: pixels vizinhos ampliados, no canto oposto ao marcador
+  const K=11,R=5,cell=Math.max(6,Math.round(Math.min(W,H)/40)),sz=K*cell,m=10*d;
+  const lx=ax>W/2?m:W-sz-m,ly=H-sz-m,mp=fr.mips[0];
+  ctx.fillStyle='#000'; ctx.fillRect(lx,ly,sz,sz);
+  const x0=Math.max(0,im.tx-R),y0=Math.max(0,im.ty-R),x1=Math.min(fr.w,im.tx+R+1),y1=Math.min(fr.h,im.ty+R+1);
+  ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(mp,x0,y0,x1-x0,y1-y0,lx+(x0-im.tx+R)*cell,ly+(y0-im.ty+R)*cell,(x1-x0)*cell,(y1-y0)*cell);
+  ctx.imageSmoothingEnabled=true;
+  ctx.lineWidth=2*d; ctx.strokeStyle='rgba(0,0,0,.8)'; ctx.strokeRect(lx+R*cell-d,ly+R*cell-d,cell+2*d,cell+2*d);
+  ctx.strokeStyle='#f0a63a'; ctx.strokeRect(lx+R*cell,ly+R*cell,cell,cell);
+  ctx.lineWidth=d; ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.strokeRect(lx-.5,ly-.5,sz+1,sz+1);
+}
+function evPt(e){const b=cv.getBoundingClientRect();return [((e.clientX-b.left)/b.width-.5)*getA(),(e.clientY-b.top)/b.height-.5]}
+const canPick=()=>S.mode==='edit'&&hasChild(S.sel)&&S.images[S.sel].frame;
+function pickPixel(e){const im=S.images[S.sel],[x,y]=evPt(e);im.x=x;im.y=y;im.auto=false;changed()}
+let drag=false;
+cv.addEventListener('pointerdown',e=>{
+  if(!canPick()){ if(S.mode==='preview') togglePlay(); return; }
+  drag=true; cv.setPointerCapture(e.pointerId); e.preventDefault(); pickPixel(e);
+});
+cv.addEventListener('pointermove',e=>{cv.style.cursor=canPick()?'crosshair':'default'; if(drag&&canPick()) pickPixel(e)});
+const endDrag=()=>{drag=false};
+cv.addEventListener('pointerup',endDrag); cv.addEventListener('pointercancel',endDrag);
+
+/* ============================ Reprodução ============================ */
+function togglePlay(){
+  if(!N()) return;
+  if(!S.playing){
+    if(S.mode==='edit'){S.mode='preview';S.z=S.sel}
+    if(!S.loop){ if(S.dir>0&&S.z>=zmax()) S.z=0; if(S.dir<0&&S.z<=0) S.z=zmax(); }
+  }
+  S.playing=!S.playing; dirty=true; syncUI();
+}
+let last=0;
+function tick(t){
+  const dt=Math.min(.1,(t-last)/1000||0); last=t;
+  if(S.playing&&N()&&!exporting){
+    const z0=S.z; S.z=ZQ.advance(S.z,dt,proj());
+    if(!S.loop&&S.z===z0){S.playing=false;syncUI()}
+    tl.value=S.z; syncTime(); dirty=true;
+  }
+  if(dirty&&!exporting){dirty=false;draw()}
+  requestAnimationFrame(tick);
+}
+
+/* ============================= Controles ============================= */
+function selectImage(i){S.sel=clamp(i,0,N()-1);S.mode='edit';S.playing=false;changed(false)}
+async function addFiles(files){
+  const imgs=[...files].filter(f=>f.type.startsWith('image/'));
+  if(!imgs.length) return;
+  const first=N(); for(const f of imgs) S.images.push(newImage(f,f.name));
+  stripDirty=true; selectImage(first); changed();
+}
+$('#add').onclick=$('#add2').onclick=()=>$('#file').click();
+$('#file').onchange=e=>{addFiles(e.target.files);e.target.value=''};
+$('#play').onclick=togglePlay;
+$('#aspect').onchange=e=>{S.aspect=e.target.value;S.images.forEach(clampAnchor);fitCanvas();changed()};
+$('#loop').onchange=e=>{S.loop=e.target.checked;S.z=clamp(S.z,0,zmax());changed()};
+$('#dir').onchange=e=>{S.dir=+e.target.value;changed()};
+$('#speed').oninput=e=>{S.speed=+e.target.value;changed()};
+$('#smooth').onchange=e=>{S.smooth=e.target.checked;changed()};
+$('#spinOn').onchange=e=>{S.spinOn=e.target.checked;changed()};
+$('#spinSpeed').oninput=e=>{S.spinSpeed=clamp(+e.target.value||0,0,720);changed()};
+$('#spinDir').onchange=e=>{S.spinDir=+e.target.value;changed()};
+$('#rmode').onchange=e=>{const im=S.images[S.sel];if(!im)return;im.rmode=e.target.value;changed()};
+$('#rdeg').oninput=e=>{const im=S.images[S.sel];if(!im)return;im.rdeg=clamp(+e.target.value||0,0,36000);changed()};
+$('#rdir').onchange=e=>{const im=S.images[S.sel];if(!im)return;im.rdir=+e.target.value;changed()};
+$('#res').onchange=e=>{S.res=+e.target.value;changed()};
+tl.oninput=()=>{if(!N())return;S.mode='preview';S.playing=false;S.z=Math.min(+tl.value,S.loop?zmax()-1e-6:zmax());dirty=true;syncUI()};
+$('#marks').onclick=e=>{const b=e.target.closest('button');if(b)selectImage(+b.dataset.i)};
+$('#panel').addEventListener('input',e=>{
+  const f=e.target.dataset.f,im=S.images[S.sel]; if(!f||!im) return;
+  im[f]=FIELDS[f].from(+e.target.value); if(f==='x'||f==='y') im.auto=false;
+  clampAnchor(im); changed();
+});
+$('#auto').onchange=e=>{const im=S.images[S.sel];if(!im)return;im.auto=e.target.checked;im.autoKey='';changed()};
+for(const [id,ax] of [['px','x'],['py','y']]) $('#'+id).oninput=e=>{
+  const im=S.images[S.sel]; if(!im||!im.frame||e.target.value==='') return;
+  const hf=halfOf(im),k=ax==='x'?0:1,n=k?im.frame.h:im.frame.w;
+  im[ax]=-hf[k]+(clamp(Math.round(+e.target.value),0,n-1)+.5)*2*hf[k]/n; im.auto=false; changed();
+};
+$('#center').onclick=()=>{const im=S.images[S.sel];if(!im)return;im.x=im.y=0;im.auto=false;changed()};
+// tira: selecionar, remover, reordenar
+const list=$('#list'); let dragFrom=-1;
+list.addEventListener('click',e=>{
+  const it=e.target.closest('.it'); if(!it) return; const i=+it.dataset.i;
+  if(e.target.closest('.del')){
+    const [m]=S.images.splice(i,1); URL.revokeObjectURL(m.url);
+    S.images.forEach(x=>x.autoKey=''); if(S.sel>i||S.sel>=N()) S.sel=Math.max(0,S.sel-1);
+    S.z=clamp(S.z,0,zmax()); S.mode='edit'; S.playing=false; stripDirty=true; changed();
+  } else selectImage(i);
+});
+list.addEventListener('dragstart',e=>{const it=e.target.closest('.it');if(!it)return;dragFrom=+it.dataset.i;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain','zq')});
+list.addEventListener('dragover',e=>{if(dragFrom<0)return;e.preventDefault();document.querySelectorAll('.it.over').forEach(x=>x.classList.remove('over'));const it=e.target.closest('.it');if(it)it.classList.add('over')});
+list.addEventListener('dragend',()=>{dragFrom=-1;document.querySelectorAll('.it.over').forEach(x=>x.classList.remove('over'))});
+list.addEventListener('drop',e=>{
+  if(dragFrom<0) return; e.preventDefault(); e.stopPropagation();
+  const it=e.target.closest('.it'),to=it?+it.dataset.i:N()-1,sel=S.images[S.sel];
+  const [m]=S.images.splice(dragFrom,1); S.images.splice(to,0,m); dragFrom=-1;
+  S.sel=S.images.indexOf(sel); S.images.forEach(x=>x.autoKey=''); stripDirty=true; changed();
+});
+// soltar arquivos em qualquer lugar
+let dropDepth=0; const isFiles=e=>dragFrom<0&&[...(e.dataTransfer?.types||[])].includes('Files');
+addEventListener('dragenter',e=>{if(isFiles(e)){dropDepth++;document.body.classList.add('drop')}});
+addEventListener('dragleave',e=>{if(isFiles(e)&&--dropDepth<=0){dropDepth=0;document.body.classList.remove('drop')}});
+addEventListener('dragover',e=>{if(isFiles(e))e.preventDefault()});
+addEventListener('drop',e=>{if(!isFiles(e))return;e.preventDefault();dropDepth=0;document.body.classList.remove('drop');addFiles(e.dataTransfer.files)});
+addEventListener('keydown',e=>{
+  if(/^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(e.target.tagName)&&!(e.target.type==='range'&&e.code==='Space')) return;
+  if(e.code==='Space'){e.preventDefault();togglePlay()}
+  else if(e.key==='ArrowUp'||e.key==='ArrowLeft'){e.preventDefault();selectImage(S.sel-1)}
+  else if(e.key==='ArrowDown'||e.key==='ArrowRight'){e.preventDefault();selectImage(S.sel+1)}
+});
+
+/* ====================== Imagens de exemplo ====================== */
+$('#demo').onclick=async()=>{
+  const pals=[['#16324f','#f6ae2d','#f26419'],['#2d1e2f','#e84a5f','#ffd6a5'],['#0b3d2e','#9bc53d','#fde74c'],['#3a1c71','#d76d77','#ffaf7b'],['#102a43','#48bfe3','#e0fbfc']];
+  const files=[];
+  for(let k=0;k<pals.length;k++){
+    const c=document.createElement('canvas');c.width=1920;c.height=1080;const g=c.getContext('2d'),p=pals[k];
+    let s=k*977+13;const rnd=()=>(s=(s*16807)%2147483647)/2147483647;
+    const gr=g.createRadialGradient(960,540,60,960,540,1150);gr.addColorStop(0,p[1]);gr.addColorStop(.55,p[0]);gr.addColorStop(1,'#000');
+    g.fillStyle=gr;g.fillRect(0,0,1920,1080);
+    for(let i=0;i<70;i++){g.globalAlpha=.12+rnd()*.3;g.fillStyle=p[1+(i%2)];g.beginPath();
+      if(k%2){g.arc(rnd()*1920,rnd()*1080,10+rnd()*90,0,7)}else{g.rect(rnd()*1920,rnd()*1080,20+rnd()*160,20+rnd()*160)}g.fill()}
+    g.globalAlpha=.9;g.fillStyle=p[2];g.font='700 420px system-ui,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(k+1,960,560);
+    const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.9));
+    files.push(new File([blob],'exemplo-'+(k+1)+'.jpg',{type:'image/jpeg'}));
+  }
+  addFiles(files);
+};
+
+/* ===================== Persistência (IndexedDB) ===================== */
+const KEEP=['name','feather','fill','rmode','rdeg','rdir','auto','x','y','s','r'];
+const settings=()=>({aspect:S.aspect,loop:S.loop,dir:S.dir,speed:S.speed,res:S.res,spinOn:S.spinOn,spinSpeed:S.spinSpeed,spinDir:S.spinDir,smooth:S.smooth});
+const pick=im=>Object.fromEntries(KEEP.map(k=>[k,im[k]]));
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('zoomquilt-editor',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+let saveT=0;
+function saveSoon(){clearTimeout(saveT);saveT=setTimeout(async()=>{
+  try{const db=await idb(),tx=db.transaction('kv','readwrite');
+    tx.objectStore('kv').put({settings:settings(),images:S.images.map(im=>({...pick(im),blob:im.blob}))},'project');
+    tx.oncomplete=()=>db.close();
+  }catch(e){console.warn('Não foi possível salvar automaticamente',e)}
+},600)}
+function applyProject(p,blobs){
+  S.images.forEach(m=>URL.revokeObjectURL(m.url));
+  Object.assign(S,{aspect:'16:9',loop:true,dir:1,speed:2,res:1080,spinOn:false,spinSpeed:20,spinDir:1,smooth:false},p.settings||{});
+  S.images=(p.images||[]).map((m,i)=>newImage(blobs[i],m.name||'imagem',Object.fromEntries(KEEP.filter(k=>k in m).map(k=>[k,m[k]]))));
+  S.sel=0;S.z=0;S.mode='edit';S.playing=false;stripDirty=true;fitCanvas();
+}
+async function restore(){
+  try{const db=await idb(),p=await new Promise((res,rej)=>{const r=db.transaction('kv').objectStore('kv').get('project');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});db.close();
+    if(p&&p.images&&p.images.length) applyProject(p,p.images.map(m=>m.blob));
+  }catch(e){console.warn('Sem projeto salvo',e)}
+  changed(false);
+}
+const toDataURL=blob=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(blob)});
+function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}
+$('#save').onclick=async()=>{
+  const images=[];for(const im of S.images) images.push({...pick(im),data:await toDataURL(im.blob)});
+  download(new Blob([JSON.stringify({app:'zoomquilt-editor',version:1,settings:settings(),images})],{type:'application/json'}),'zoomquilt.json');
+};
+$('#open').onclick=()=>$('#pfile').click();
+$('#pfile').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{
+    const p=JSON.parse(await f.text());
+    if(p.app!=='zoomquilt-editor'||!Array.isArray(p.images)) throw new Error('formato desconhecido');
+    const blobs=[];for(const m of p.images) blobs.push(await (await fetch(m.data)).blob());
+    applyProject(p,blobs);changed();
+  }catch(err){alert('Não foi possível abrir o projeto: '+err.message)}
+};
+
+/* ============================ Exportações ============================ */
+let cancelExport=false;
+function modal(on,title,text){$('#modal').classList.toggle('on',on);if(on){$('#mtitle').textContent=title;$('#mtext').textContent=text;$('#mprog').value=0}}
+$('#mcancel').onclick=()=>{cancelExport=true};
+const framesReady=()=>S.images.every(im=>im.frame&&!im.building);
+$('#xvid').onclick=async()=>{
+  if(!framesReady()){alert('Aguarde as imagens terminarem de carregar.');return}
+  if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream){alert('Este navegador não grava vídeo a partir do canvas.');return}
+  const mime=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4'].find(m=>MediaRecorder.isTypeSupported(m));
+  if(!mime){alert('Nenhum formato de vídeo suportado neste navegador.');return}
+  const [W,H]=outSize(),c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
+  const P=proj(),total=zTime(zmax())*rate(); // comprimento total em unidades de log-zoom
+  if(total<=0){alert('É preciso pelo menos duas imagens (ou o loop ligado) para gerar o vídeo.');return}
+  const rec=new MediaRecorder(c.captureStream(60),{mimeType:mime,videoBitsPerSecond:16e6}),chunks=[];
+  rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+  const done=new Promise(r=>rec.onstop=r);
+  S.playing=false;exporting=true;cancelExport=false;
+  modal(true,'Exportando vídeo',`${W}×${H}, ${(total/rate()).toFixed(1)} s. A gravação é em tempo real: mantenha esta aba visível.`);
+  let z=S.dir>0?0:(S.loop?0:zmax()),acc=0,prev=0;
+  ZQ.render(g,W,H,z,P);rec.start();
+  await new Promise(res=>{const step=t=>{
+    const dt=prev?Math.min(.1,(t-prev)/1000):0;prev=t;
+    const d=Math.min(dt,(total-acc)/P.rate);z=ZQ.advance(z,d,P);acc+=d*P.rate;
+    ZQ.render(g,W,H,(P.loop&&acc>=total-1e-6)?(S.dir>0?0:0):z,P);$('#mprog').value=acc/total;
+    if(cancelExport||acc>=total-1e-6) res(); else requestAnimationFrame(step);
+  };requestAnimationFrame(step)});
+  await new Promise(r=>setTimeout(r,150));rec.stop();await done;
+  exporting=false;modal(false);dirty=true;syncUI();
+  if(!cancelExport) download(new Blob(chunks,{type:mime.split(';')[0]}),'zoomquilt.'+(mime.includes('mp4')?'mp4':'webm'));
+};
+/* GIF: paleta fixa de 252 cores (6×7×6) com pontilhado ordenado e compressão LZW. */
+function gifLZW(px,out){
+  const MIN=8,CLEAR=256,EOI=257; let size=MIN+1,next=EOI+1,buf=0,bits=0; const dict=new Map(),bytes=[];
+  const emit=c=>{buf|=c<<bits;bits+=size;while(bits>=8){bytes.push(buf&255);buf>>>=8;bits-=8}};
+  emit(CLEAR); let p=px[0];
+  for(let i=1;i<px.length;i++){
+    const c=px[i],k=p<<8|c,v=dict.get(k);
+    if(v!==undefined){p=v;continue}
+    emit(p);
+    if(next===4096){emit(CLEAR);dict.clear();size=MIN+1;next=EOI+1}
+    else{if(next>=(1<<size))size++;dict.set(k,next++)}
+    p=c;
+  }
+  emit(p);emit(EOI);if(bits>0)bytes.push(buf&255);
+  out.push(new Uint8Array([MIN]));
+  for(let i=0;i<bytes.length;i+=255){const n=Math.min(255,bytes.length-i),b=new Uint8Array(n+1);b[0]=n;b.set(bytes.slice(i,i+n),1);out.push(b)}
+  out.push(new Uint8Array([0]));
+}
+$('#xgif').onclick=async()=>{
+  if(!framesReady()){alert('Aguarde as imagens terminarem de carregar.');return}
+  const P=proj(),total=zTime(zmax())*rate(),FPS=15,A=getA();
+  if(total<=0){alert('É preciso pelo menos duas imagens (ou o loop ligado) para gerar o GIF.');return}
+  const W=Math.round(A>=1?360*A:360),H=Math.round(A>=1?360:360/A),nf=Math.max(2,Math.round(total/P.rate*FPS));
+  const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d',{willReadFrequently:true});
+  const le=v=>[v&255,v>>8],pal=new Uint8Array(768);
+  for(let r=0;r<6;r++)for(let gg=0;gg<7;gg++)for(let b=0;b<6;b++){const i=(r*42+gg*6+b)*3;pal[i]=r*51;pal[i+1]=Math.round(gg*42.5);pal[i+2]=b*51}
+  const out=[new Uint8Array([71,73,70,56,57,97,...le(W),...le(H),0xF7,0,0]),pal,
+    new Uint8Array([0x21,0xFF,11,78,69,84,83,67,65,80,69,50,46,48,3,1,0,0,0])];
+  const BAYER=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5],px=new Uint8Array(W*H);
+  S.playing=false;exporting=true;cancelExport=false;
+  modal(true,'Exportando GIF',`${W}×${H}, ${nf} quadros a ${FPS} fps. GIF é pesado: use para testes e prefira o WebM para o resultado final.`);
+  let z=S.dir>0?0:(S.loop?0:zmax());
+  for(let f=0;f<nf&&!cancelExport;f++){
+    ZQ.render(g,W,H,z,P);
+    const d=g.getImageData(0,0,W,H).data;
+    for(let y=0,i=0;y<H;y++)for(let x=0;x<W;x++,i++){
+      const t=(BAYER[(y&3)*4+(x&3)]+.5)/16-.5,j=i*4;
+      const r=clamp(Math.round(d[j]/51+t),0,5),gg=clamp(Math.round(d[j+1]/42.5+t),0,6),b=clamp(Math.round(d[j+2]/51+t),0,5);
+      px[i]=r*42+gg*6+b;
+    }
+    const delay=Math.round((f+1)*100/FPS)-Math.round(f*100/FPS);
+    out.push(new Uint8Array([0x21,0xF9,4,0,...le(delay),0,0,0x2C,0,0,0,0,...le(W),...le(H),0]));
+    gifLZW(px,out);
+    z=ZQ.advance(z,total/P.rate/nf,P);
+    $('#mprog').value=(f+1)/nf; await new Promise(r=>setTimeout(r));
+  }
+  out.push(new Uint8Array([0x3B]));
+  exporting=false;modal(false);dirty=true;syncUI();
+  if(!cancelExport) download(new Blob(out,{type:'image/gif'}),'zoomquilt.gif');
+};
+$('#xhtml').onclick=async()=>{
+  if(!framesReady()){alert('Aguarde as imagens terminarem de carregar.');return}
+  exporting=true;cancelExport=false;modal(true,'Exportando HTML','Embutindo as imagens em um único arquivo.');
+  const A=getA(),items=[];
+  try{
+    for(let i=0;i<N();i++){
+      if(cancelExport) throw 0;
+      const im=S.images[i],bmp=await createImageBitmap(im.blob),fr=ZQ.buildFrame(bmp,bmp.width,bmp.height,0);bmp.close();
+      items.push({src:fr.mips[0].toDataURL('image/jpeg',.9),x:im.x,y:im.y,s:im.s,r:im.r,feather:im.feather});
+      $('#mprog').value=(i+1)/N();await new Promise(r=>setTimeout(r));
+    }
+    const D=JSON.stringify({A,loop:S.loop,dir:S.dir,rate:rate(),smooth:S.smooth,items});
+    const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Zoomquilt</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}canvas{position:absolute;inset:0;margin:auto;cursor:pointer;touch-action:none}</style></head><body><canvas id="c"></canvas>
+<script>
+var D=${D};
+var ZQ=(${ZQEngine.toString()})();
+var cv=document.getElementById('c'),ctx=cv.getContext('2d'),z=0,play=true,last=0;
+var P={A:D.A,loop:D.loop,dir:D.dir,rate:D.rate,smooth:D.smooth,bg:'#000',items:[]};
+function fit(){var d=window.devicePixelRatio||1,w=Math.min(innerWidth,innerHeight*D.A),h=w/D.A;cv.style.width=w+'px';cv.style.height=h+'px';cv.width=Math.round(w*d);cv.height=Math.round(h*d)}
+addEventListener('resize',fit);fit();
+Promise.all(D.items.map(function(it){return new Promise(function(res,rej){var im=new Image();im.onload=function(){res(im)};im.onerror=rej;im.src=it.src})})).then(function(ims){
+  P.items=D.items.map(function(it,i){return {x:it.x,y:it.y,s:it.s,r:it.r,frame:ZQ.buildFrame(ims[i],ims[i].naturalWidth,ims[i].naturalHeight,(!D.loop&&i===0)?0:it.feather)}});
+  if(P.dir<0&&!P.loop)z=P.items.length-1;
+  requestAnimationFrame(tick);
+});
+function tick(t){var dt=Math.min(.1,(t-last)/1000||0);last=t;
+  if(play){var z0=z;z=ZQ.advance(z,dt,P);if(!P.loop&&z===z0&&dt>0)P.dir=-P.dir}
+  ZQ.render(ctx,cv.width,cv.height,z,P);requestAnimationFrame(tick)}
+cv.addEventListener('click',function(){play=!play});
+addEventListener('keydown',function(e){if(e.code==='Space'){e.preventDefault();play=!play}});
+addEventListener('wheel',function(e){var d=P.dir;P.dir=e.deltaY>0?1:-1;z=ZQ.advance(z,Math.abs(e.deltaY)/400,P);P.dir=d},{passive:true});
+<\/script></body></html>`;
+    download(new Blob([html],{type:'text/html'}),'zoomquilt.html');
+  }catch(e){if(e!==0){console.error(e);alert('Falha ao exportar: '+(e.message||e))}}
+  exporting=false;modal(false);dirty=true;
+};
+
+fitCanvas(); restore(); requestAnimationFrame(tick);
+</script>
+</body>
+</html>
