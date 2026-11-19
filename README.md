@@ -2,6 +2,8 @@
 
 Editor visual para criar animações de **zoom infinito** (estilo *zoomquilt* / efeito Droste): cada imagem fica escondida dentro de um único pixel da imagem anterior e vai se revelando conforme a câmera avança. O resultado pode ser assistido no próprio editor ou exportado como vídeo WebM, GIF ou uma página HTML autossuficiente.
 
+![Editor de Zoomquilt em modo de edição: tira de imagens à esquerda, palco com marcador de âncora e lupa, painel de propriedades à direita e linha do tempo no rodapé](docs/screenshot.png)
+
 Tudo vive em **um único `index.html`**: sem build, sem `npm install`, sem dependências externas e sem chamadas de rede.
 
 ---
@@ -25,6 +27,8 @@ Tudo vive em **um único `index.html`**: sem build, sem `npm install`, sem depen
 - [Limitações](#limitações)
 - [Compatibilidade](#compatibilidade)
 - [Estrutura do repositório](#estrutura-do-repositório)
+- [Contribuição](#contribuição)
+- [Licença](#licença)
 
 ---
 
@@ -184,8 +188,35 @@ Funciona nas versões atuais de Chrome, Edge, Firefox e Safari. Recursos exigido
 
 ```
 Zoom-Quilt-Editor/
-├── index.html        # aplicação completa (HTML + CSS + JS, sem dependências)
+├── index.html          # aplicação completa (HTML + CSS + JS, sem dependências)
 ├── README.md
+├── LICENSE             # MIT
+├── docs/
+│   └── screenshot.png  # captura de tela usada neste README
 └── .claude/
-    └── launch.json   # configuração de servidor local (porta 8765)
+    └── launch.json     # configuração de servidor local (porta 8765)
 ```
+
+O app é um arquivo único de propósito: dá para copiar o `index.html` para qualquer lugar, abrir e usar — inclusive offline. Não existe etapa de build, transpilação ou instalação de pacotes.
+
+---
+
+## Contribuição
+
+Sugestões e correções são bem-vindas. Como o projeto é um arquivo só, o fluxo é simples:
+
+1. Faça um fork e crie um branch descritivo (`feat/giro-por-trecho`, `fix/ancora-fora-do-limite`).
+2. Edite `index.html` — mantenha o estilo do arquivo: sem dependências, sem framework, JavaScript moderno direto no `script`, nomes curtos e comentários em português nos trechos não óbvios.
+3. Se mexer no `ZQEngine`, lembre-se de que essa função é serializada com `toString()` para dentro do HTML exportado: ela **não pode** referenciar nada de fora do próprio corpo (nem variáveis globais, nem helpers definidos depois). O player exportado precisa continuar funcionando sozinho.
+4. Teste nos dois caminhos: editor e **Exportar HTML**, além de WebM/GIF se a mudança tocar em renderização.
+5. Abra o pull request explicando o que mudou e como testar.
+
+Ao reportar um problema, inclua navegador e versão, quantas imagens o projeto tem e os passos para reproduzir. Se for um bug visual, uma captura ajuda bastante.
+
+Ideias que ainda não estão implementadas, caso queira contribuir: desfazer/refazer, curvas de velocidade (easing) por trecho, exportação de frames PNG em sequência, suporte a áudio no WebM e presets de animação.
+
+---
+
+## Licença
+
+Distribuído sob a **licença MIT** — veja [LICENSE](LICENSE). Em resumo: use, modifique e redistribua livremente, inclusive comercialmente, mantendo o aviso de copyright.
